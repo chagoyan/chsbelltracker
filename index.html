@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1C1C1C">
+<title>CHS Bell — Coalinga High</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top bar: day picker + alarm toggle -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">CHS</span>
+      <span class="brand-sub">Bell&nbsp;Tracker</span>
+    </div>
+    <button id="alarmToggle" class="alarm-toggle" aria-pressed="true">
+      <span class="alarm-dot"></span>
+      <span class="alarm-label">Alarm ON</span>
+    </button>
+  </header>
+
+  <!-- Schedule picker -->
+  <section class="picker">
+    <label for="scheduleSelect" class="picker-label">Today's schedule</label>
+    <select id="scheduleSelect" class="picker-select">
+      <!-- populated by app.js -->
+    </select>
+  </section>
+
+  <!-- Now / Next readout — the signature element -->
+  <section class="now-panel" id="nowPanel">
+    <div class="now-row">
+      <div class="now-block">
+        <div class="now-eyebrow">Right now</div>
+        <div class="now-value" id="currentPeriodName">—</div>
+        <div class="now-sub" id="currentPeriodTime">Pick a schedule above</div>
+      </div>
+      <div class="divider" aria-hidden="true"></div>
+      <div class="now-block">
+        <div class="now-eyebrow">Next bell in</div>
+        <div class="now-value countdown" id="countdown">--:--</div>
+        <div class="now-sub" id="nextBellName">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Full period list -->
+  <section class="period-list" id="periodList" aria-live="polite">
+    <!-- populated by app.js -->
+  </section>
+
+  <p class="footnote">Cleanup alarm sounds 2 minutes before each bell. Keep this tab open and unmuted.</p>
+
+  <!-- Hidden audio element used for the alarm sound -->
+  <audio id="alarmAudio" preload="auto">
+    <source src="alarm.wav" type="audio/wav">
+  </audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
