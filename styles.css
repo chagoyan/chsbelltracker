@@ -262,6 +262,23 @@ body {
   color: var(--text);
 }
 
+.period-duration {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-size: clamp(11px, 3vw, 12px);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.period-row.is-current .period-duration {
+  color: var(--orange);
+  border-color: var(--orange-dim);
+}
+
 .empty-state {
   text-align: center;
   color: var(--text-muted);

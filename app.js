@@ -106,6 +106,14 @@ function formatClock(hhmm) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function periodLengthMinutes(p) {
+  return toMinutes(p.end) - toMinutes(p.start);
+}
+
+function formatDuration(p) {
+  return `${periodLengthMinutes(p)} min`;
+}
+
 function nowMinutes() {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
@@ -144,7 +152,7 @@ function renderPeriodList(schedule) {
     else if (nm >= end) row.classList.add("is-done");
     row.innerHTML = `
       <span class="period-name">${p.name}</span>
-      <span class="period-time">${formatClock(p.start)} – ${formatClock(p.end)}</span>
+      <span class="period-time">${formatClock(p.start)} – ${formatClock(p.end)}<span class="period-duration">${formatDuration(p)}</span></span>
     `;
     periodListEl.appendChild(row);
   });
@@ -170,7 +178,7 @@ function tick() {
   const current = periods.find(p => nm >= toMinutes(p.start) && nm < toMinutes(p.end));
   if (current) {
     currentPeriodName.textContent = current.name;
-    currentPeriodTime.textContent = `${formatClock(current.start)} – ${formatClock(current.end)}`;
+    currentPeriodTime.textContent = `${formatClock(current.start)} – ${formatClock(current.end)} · ${formatDuration(current)}`;
   } else {
     currentPeriodName.textContent = "Passing / Out of school hours";
     currentPeriodTime.textContent = "";
