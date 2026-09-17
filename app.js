@@ -77,11 +77,12 @@ const SCHEDULES = {
 };
 
 const ALARM_LEAD_MINUTES = 2; // fire the cleanup alarm this many minutes before each bell
+const SCHEDULE_STORAGE_KEY = "chsBellTracker.selectedSchedule"; // remembers the last-picked schedule across reloads
 
 // ---------- State ----------
 let alarmsEnabled = true;
-let alarmedKeys = new Set(); // tracks which bells we've already alarmed for today, reset on schedule change
-let selectedKey = null;
+let alarmedKeys = new Set(); // tracks which bells we've already alarmed for today, reset at midnight or on schedule change
+let currentDayKey = null; // tracks which calendar day alarmedKeys applies to
 
 // ---------- Elements ----------
 const scheduleSelect = document.getElementById("scheduleSelect");
@@ -117,6 +118,20 @@ function formatDuration(p) {
 function nowMinutes() {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+}
+
+function todayKey() {
+  return new Date().toDateString(); // e.g. "Wed Sep 17 2026" — changes once per calendar day
+}
+
+function formatCountdown(totalSeconds) {
+  const hh = Math.floor(totalSeconds / 3600);
+  const mm = Math.floor((totalSeconds % 3600) / 60);
+  const ss = totalSeconds % 60;
+  if (hh > 0) {
+    return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  }
+  return `${mm}:${String(ss).padStart(2, "0")}`;
 }
 
 // ---------- Populate schedule dropdown ----------
@@ -160,6 +175,12 @@ function renderPeriodList(schedule) {
 
 // ---------- Now / Next panel + alarm check ----------
 function tick() {
+  const dayKey = todayKey();
+  if (dayKey !== currentDayKey) {
+    currentDayKey = dayKey;
+    alarmedKeys.clear(); // new calendar day — every bell is eligible to alarm again
+  }
+
   const key = scheduleSelect.value;
   const schedule = SCHEDULES[key];
 
@@ -195,9 +216,7 @@ function tick() {
     const end = toMinutes(next.end);
     const diff = end - nm; // minutes remaining, fractional
     const totalSeconds = Math.max(0, Math.round(diff * 60));
-    const mm = Math.floor(totalSeconds / 60);
-    const ss = totalSeconds % 60;
-    countdownEl.textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+    countdownEl.textContent = formatCountdown(totalSeconds);
     countdownEl.classList.toggle("urgent", diff <= ALARM_LEAD_MINUTES);
     nextBellNameEl.textContent = `${next.name} ends at ${formatClock(next.end)}`;
 
@@ -245,6 +264,9 @@ function requestNotificationPermission() {
 // ---------- Event wiring ----------
 scheduleSelect.addEventListener("change", () => {
   alarmedKeys.clear(); // fresh schedule, fresh alarm tracking
+  try {
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, scheduleSelect.value);
+  } catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
   // Unlock audio playback on this user gesture so later automatic play() calls work
   alarmAudio.play().then(() => { alarmAudio.pause(); alarmAudio.currentTime = 0; }).catch(() => {});
   requestNotificationPermission();
@@ -259,7 +281,17 @@ alarmToggle.addEventListener("click", () => {
 
 // ---------- Init ----------
 populateSchedules();
-renderPeriodList(null);
+
+// Restore the last schedule the user picked, if any, so reopening the app
+// (or refreshing) doesn't force a reselect every time.
+try {
+  const savedKey = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+  if (savedKey && SCHEDULES[savedKey]) {
+    scheduleSelect.value = savedKey;
+  }
+} catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
+
+renderPeriodList(SCHEDULES[scheduleSelect.value] || null);
 setInterval(tick, 1000);
 tick();
 

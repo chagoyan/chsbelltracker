@@ -1,7 +1,7 @@
 // Bumping CACHE_NAME (e.g. to "chs-bell-v2") forces browsers to fetch fresh
 // copies of every file below next load — do this whenever you edit the app,
 // especially if you update the First Day of School times next year.
-const CACHE_NAME = "chs-bell-v3";
+const CACHE_NAME = "chs-bell-v4";
 
 const FILES_TO_CACHE = [
   "./",
@@ -9,7 +9,7 @@ const FILES_TO_CACHE = [
   "./styles.css",
   "./app.js",
   "./manifest.json",
-  "./hello_moto.mp3",
+  "./alarm.wav",
   "./favicon.ico",
   "./icon-192.png",
   "./icon-512.png",
