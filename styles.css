@@ -40,7 +40,15 @@ body {
   padding: 4px 2px 18px;
 }
 
-.brand { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: block;
+}
 
 .brand-mark {
   font-weight: 900;
