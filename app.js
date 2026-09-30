@@ -6,6 +6,7 @@
 
 const SCHEDULES = {
   regular: {
+    short: "Regular", // label for the View Schedules buttons
     label: "Regular Day (Mon / Tue / Fri)",
     periods: [
       { name: "Period 1", start: "07:55", end: "08:44" },
@@ -19,6 +20,7 @@ const SCHEDULES = {
     ]
   },
   wednesday: {
+    short: "Wednesday",
     label: "Wednesday (Late Start)",
     periods: [
       { name: "Period 1", start: "09:10", end: "09:48" },
@@ -32,6 +34,7 @@ const SCHEDULES = {
     ]
   },
   thursday: {
+    short: "Thursday",
     label: "Thursday",
     periods: [
       { name: "Period 1", start: "07:55", end: "08:41" },
@@ -45,6 +48,7 @@ const SCHEDULES = {
     ]
   },
   minimum: {
+    short: "Minimum",
     label: "Minimum Day (1:00 Release)",
     periods: [
       { name: "Period 1", start: "07:55", end: "08:28" },
@@ -61,6 +65,7 @@ const SCHEDULES = {
     // This schedule is unique to the first day of school and can change
     // year to year. Update the times below each fall if the school sends
     // a new sheet — everything else in the app stays the same.
+    short: "First Day",
     label: "First Day of School",
     periods: [
       { name: "Rally",    start: "07:55", end: "08:25" },
@@ -93,6 +98,13 @@ const currentPeriodTime = document.getElementById("currentPeriodTime");
 const countdownEl = document.getElementById("countdown");
 const nextBellNameEl = document.getElementById("nextBellName");
 const alarmAudio = document.getElementById("alarmAudio");
+const tabToday = document.getElementById("tabToday");
+const tabBrowse = document.getElementById("tabBrowse");
+const todayView = document.getElementById("todayView");
+const browseView = document.getElementById("browseView");
+const browseChips = document.getElementById("browseChips");
+const browseTitle = document.getElementById("browseTitle");
+const browseList = document.getElementById("browseList");
 
 // ---------- Helpers ----------
 function toMinutes(hhmm) {
@@ -152,10 +164,12 @@ function populateSchedules() {
 }
 
 // ---------- Render period list ----------
-function renderPeriodList(schedule) {
-  periodListEl.innerHTML = "";
+// `live` highlights the current period and dims finished ones — used for
+// Today only. The View Schedules reference passes false so it stays neutral.
+function renderPeriodList(schedule, listEl = periodListEl, live = true) {
+  listEl.innerHTML = "";
   if (!schedule) {
-    periodListEl.innerHTML = `<div class="empty-state">Pick today's schedule to see period times.</div>`;
+    listEl.innerHTML = `<div class="empty-state">Pick today's schedule to see period times.</div>`;
     return;
   }
   const nm = nowMinutes();
@@ -163,14 +177,50 @@ function renderPeriodList(schedule) {
     const row = document.createElement("div");
     row.className = "period-row";
     const start = toMinutes(p.start), end = toMinutes(p.end);
-    if (nm >= start && nm < end) row.classList.add("is-current");
-    else if (nm >= end) row.classList.add("is-done");
+    if (live && nm >= start && nm < end) row.classList.add("is-current");
+    else if (live && nm >= end) row.classList.add("is-done");
     row.innerHTML = `
       <span class="period-name">${p.name}</span>
       <span class="period-time">${formatClock(p.start)} – ${formatClock(p.end)}<span class="period-duration">${formatDuration(p)}</span></span>
     `;
-    periodListEl.appendChild(row);
+    listEl.appendChild(row);
   });
+}
+
+// ---------- View Schedules (read-only reference) ----------
+// Browsing here never touches scheduleSelect, localStorage, or alarmedKeys,
+// and tick() keeps running underneath, so today's alarms still fire.
+function populateBrowseChips() {
+  Object.entries(SCHEDULES).forEach(([key, sched]) => {
+    const chip = document.createElement("button");
+    chip.className = "browse-chip";
+    chip.dataset.key = key;
+    chip.textContent = sched.short;
+    chip.addEventListener("click", () => showBrowseSchedule(key));
+    browseChips.appendChild(chip);
+  });
+}
+
+function showBrowseSchedule(key) {
+  const schedule = SCHEDULES[key];
+  browseChips.querySelectorAll(".browse-chip").forEach(chip => {
+    chip.setAttribute("aria-pressed", String(chip.dataset.key === key));
+  });
+  const isToday = key === scheduleSelect.value;
+  browseTitle.textContent = schedule.label + (isToday ? " · Today" : "");
+  renderPeriodList(schedule, browseList, false);
+}
+
+function showView(view) {
+  const browsing = view === "browse";
+  todayView.hidden = browsing;
+  browseView.hidden = !browsing;
+  tabToday.setAttribute("aria-selected", String(!browsing));
+  tabBrowse.setAttribute("aria-selected", String(browsing));
+  if (browsing) {
+    // Always open on the day's selected schedule (or the first one if none is picked yet)
+    showBrowseSchedule(scheduleSelect.value || Object.keys(SCHEDULES)[0]);
+  }
 }
 
 // ---------- Now / Next panel + alarm check ----------
@@ -279,8 +329,12 @@ alarmToggle.addEventListener("click", () => {
   alarmToggle.querySelector(".alarm-label").textContent = alarmsEnabled ? "Alarm ON" : "Alarm OFF";
 });
 
+tabToday.addEventListener("click", () => showView("today"));
+tabBrowse.addEventListener("click", () => showView("browse"));
+
 // ---------- Init ----------
 populateSchedules();
+populateBrowseChips();
 
 // Restore the last schedule the user picked, if any, so reopening the app
 // (or refreshing) doesn't force a reselect every time.

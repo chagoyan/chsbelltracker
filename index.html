@@ -26,6 +26,14 @@
     </button>
   </header>
 
+  <!-- Mode tabs: live tracker vs. read-only schedule reference -->
+  <nav class="tabs" role="tablist">
+    <button id="tabToday" class="tab" role="tab" aria-selected="true" aria-controls="todayView">Today</button>
+    <button id="tabBrowse" class="tab" role="tab" aria-selected="false" aria-controls="browseView">View Schedules</button>
+  </nav>
+
+  <div id="todayView" role="tabpanel" aria-labelledby="tabToday">
+
   <!-- Schedule picker -->
   <section class="picker">
     <label for="scheduleSelect" class="picker-label">Today's schedule</label>
@@ -55,6 +63,19 @@
   <section class="period-list" id="periodList" aria-live="polite">
     <!-- populated by app.js -->
   </section>
+
+  </div>
+
+  <!-- Schedule reference — browsing here never changes today's schedule or alarms -->
+  <div id="browseView" role="tabpanel" aria-labelledby="tabBrowse" hidden>
+    <div class="browse-chips" id="browseChips">
+      <!-- populated by app.js -->
+    </div>
+    <div class="browse-title" id="browseTitle"></div>
+    <section class="period-list" id="browseList">
+      <!-- populated by app.js -->
+    </section>
+  </div>
 
   <p class="footnote">Cleanup alarm sounds 2 minutes before each bell. Keep this tab open and unmuted.</p>
 
