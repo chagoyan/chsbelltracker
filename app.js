@@ -95,6 +95,7 @@ const alarmToggle = document.getElementById("alarmToggle");
 const periodListEl = document.getElementById("periodList");
 const currentPeriodName = document.getElementById("currentPeriodName");
 const currentPeriodTime = document.getElementById("currentPeriodTime");
+const currentPeriodElapsed = document.getElementById("currentPeriodElapsed");
 const countdownEl = document.getElementById("countdown");
 const nextBellNameEl = document.getElementById("nextBellName");
 const alarmAudio = document.getElementById("alarmAudio");
@@ -237,6 +238,7 @@ function tick() {
   if (!schedule) {
     currentPeriodName.textContent = "—";
     currentPeriodTime.textContent = "Pick a schedule above";
+    currentPeriodElapsed.hidden = true;
     countdownEl.textContent = "--:--";
     nextBellNameEl.textContent = "—";
     return;
@@ -250,9 +252,15 @@ function tick() {
   if (current) {
     currentPeriodName.textContent = current.name;
     currentPeriodTime.textContent = `${formatClock(current.start)} – ${formatClock(current.end)} · ${formatDuration(current)}`;
+    // Subtle live counter — how far into the current period we are, same
+    // mm:ss styling as the "Next bell in" countdown but de-emphasized.
+    const elapsedSeconds = Math.max(0, Math.round((nm - toMinutes(current.start)) * 60));
+    currentPeriodElapsed.textContent = `${formatCountdown(elapsedSeconds)} elapsed`;
+    currentPeriodElapsed.hidden = false;
   } else {
     currentPeriodName.textContent = "Passing / Out of school hours";
     currentPeriodTime.textContent = "";
+    currentPeriodElapsed.hidden = true;
   }
 
   // Find next bell (the next end-of-period time still ahead of now)

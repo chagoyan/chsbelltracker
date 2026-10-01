@@ -276,6 +276,15 @@ body {
   font-weight: 600;
 }
 
+.now-elapsed {
+  margin-top: 2px;
+  font-size: clamp(10px, 2.6vw, 11px);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
 .divider {
   width: 1px;
   align-self: stretch;
