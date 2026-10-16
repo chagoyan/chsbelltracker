@@ -324,6 +324,16 @@ body.test-running::after {
   margin-top: 10px;
 }
 
+/* Cleanup alarm: 2 | 5 | 10 min — the Auto | Manual pill with a label inside */
+.cleanup-switch { align-items: center; }
+
+.cleanup-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0 6px 0 10px;
+}
+
 /* Locked in Auto: muted text, no dropdown arrow */
 .picker-select:disabled {
   color: var(--text-muted);

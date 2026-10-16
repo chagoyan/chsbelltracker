@@ -5,6 +5,10 @@
 //
 // `phases` splits a period into parts (breakfast, reading, instruction).
 // A chime plays when each part after the first begins.
+//
+// Alarms: a cleanup alarm before each period ends (lead time picked in the
+// app), plus fixed warnings before Period 1 starts and before Lunch ends.
+// `noCleanup` skips a period's cleanup alarm.
 // ============================================================
 
 const SCHEDULES = {
@@ -84,7 +88,7 @@ const SCHEDULES = {
     short: "First Day",
     label: "First Day of School",
     periods: [
-      { name: "Rally",    start: "07:55", end: "08:25" },
+      { name: "Rally",    start: "07:55", end: "08:25", noCleanup: true },
       { name: "Period 1", start: "08:30", end: "08:58" },
       { name: "Period 2", start: "09:03", end: "09:41" },
       { name: "Period 3", start: "09:46", end: "10:14" },
@@ -101,22 +105,28 @@ const SCHEDULES = {
 // Minimum and First Day are always picked by hand.
 const WEEKDAY_SCHEDULES = { 1: "regular", 2: "regular", 3: "wednesday", 4: "thursday", 5: "regular" };
 
-const ALARM_LEAD_MINUTES = 2; // fire the cleanup alarm this many minutes before each bell
+const FIRST_CLASS_NAME = "Period 1"; // gets the warning before it starts, and the before-school countdown
+const LUNCH_NAME = "Lunch"; // gets the fixed warning before it ends instead of a cleanup alarm
+const WARNING_MINUTES = 5; // fixed lead for the Period 1 and lunch-ends warnings
+const CLEANUP_CHOICES = [2, 5, 10]; // cleanup alarm lead times the user can pick, in minutes
+const DEFAULT_CLEANUP_MINUTES = 2;
 const CHIME_GRACE_SECONDS = 15; // a chime missed by more than this (e.g. the app was paused) is skipped, not played late
 const SOUND_LOOKAHEAD_SECONDS = 90; // schedule sounds this far ahead — background tabs may only run timers once a minute
 const SOUND_FILES = { alarm: "alarm.wav", chime: "chime.wav" };
 const TEST_SPEED = 60; // test mode runs the day this many times faster than real time
-const TEST_LEAD_MINUTES = 5; // test mode starts this long before the first bell
+const TEST_LEAD_MINUTES = 6; // test mode starts this long before the first bell — just ahead of its warning
 
 const CHOICE_STORAGE_KEY = "chsBellTracker.todayChoice"; // a manual schedule pick, which lasts only for the day it was made
 const CHIME_STORAGE_KEY = "chsBellTracker.chimeOn";
 const WAKE_STORAGE_KEY = "chsBellTracker.keepScreenOn";
+const CLEANUP_STORAGE_KEY = "chsBellTracker.cleanupMinutes";
 
 // ---------- State ----------
 let scheduleMode = "auto"; // "auto" (picked by weekday) or "manual" (picked from the dropdown, today only)
 let alarmsEnabled = true;
 let chimesEnabled = readSetting(CHIME_STORAGE_KEY, true);
 let keepScreenOn = readSetting(WAKE_STORAGE_KEY, false);
+let cleanupMinutes = readCleanupMinutes();
 let handledSounds = new Set(); // sounds already scheduled, played, or skipped today, reset at midnight or on schedule change
 let pendingSounds = new Map(); // id -> { sound, when, nodes } for sounds on the audio clock that haven't finished
 let notifiedSounds = new Set(); // alerts already shown as a notification today
@@ -139,6 +149,7 @@ const modeManual = document.getElementById("modeManual");
 const alarmToggle = document.getElementById("alarmToggle");
 const chimeToggle = document.getElementById("chimeToggle");
 const wakeToggle = document.getElementById("wakeToggle");
+const cleanupSwitch = document.getElementById("cleanupSwitch");
 const soundBanner = document.getElementById("soundBanner");
 const brandLogo = document.getElementById("brandLogo");
 const testBar = document.getElementById("testBar");
@@ -229,6 +240,30 @@ function saveSetting(key, value) {
   } catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
 }
 
+function readCleanupMinutes() {
+  try {
+    const saved = Number(localStorage.getItem(CLEANUP_STORAGE_KEY));
+    if (CLEANUP_CHOICES.includes(saved)) return saved;
+  } catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
+  return DEFAULT_CLEANUP_MINUTES;
+}
+
+function firstClass(schedule) {
+  return schedule.periods.find(p => p.name === FIRST_CLASS_NAME) || schedule.periods[0];
+}
+
+// Every alarm of the day, by the bell it warns about. Shared by the sounds
+// and the countdown, so the countdown turns red exactly when its alarm sounds.
+function alarmBells(schedule) {
+  const first = firstClass(schedule);
+  const bells = [{ kind: "start", period: first, edge: "start", lead: WARNING_MINUTES }];
+  schedule.periods.forEach(p => {
+    if (p.name === LUNCH_NAME) bells.push({ kind: "lunch", period: p, edge: "end", lead: WARNING_MINUTES });
+    else if (!p.noCleanup) bells.push({ kind: "cleanup", period: p, edge: "end", lead: cleanupMinutes });
+  });
+  return bells;
+}
+
 // ---------- Which schedule applies today ----------
 // Auto: the schedule follows the weekday. Manual: it's whatever the dropdown
 // says (a schedule key or "none"), saved with today's date so it's forgotten
@@ -265,6 +300,34 @@ function populateSchedules() {
     scheduleSelect.appendChild(new Option(sched.label, key));
   });
   scheduleSelect.appendChild(new Option("No school today", "none"));
+}
+
+// ---------- Cleanup alarm lead time ----------
+function populateCleanupSwitch() {
+  CLEANUP_CHOICES.forEach(minutes => {
+    const option = document.createElement("button");
+    option.className = "mode-option";
+    option.dataset.minutes = minutes;
+    option.textContent = `${minutes} min`;
+    option.addEventListener("click", () => setCleanupMinutes(minutes));
+    cleanupSwitch.appendChild(option);
+  });
+  markCleanupChoice();
+}
+
+function markCleanupChoice() {
+  cleanupSwitch.querySelectorAll(".mode-option").forEach(option => {
+    option.setAttribute("aria-pressed", String(Number(option.dataset.minutes) === cleanupMinutes));
+  });
+}
+
+function setCleanupMinutes(minutes) {
+  if (minutes === cleanupMinutes) return;
+  cleanupMinutes = minutes;
+  saveSetting(CLEANUP_STORAGE_KEY, minutes);
+  markCleanupChoice();
+  cancelPendingSounds("alarm"); // alarms already lined up move to the new lead time
+  tick();
 }
 
 // Auto locks the dropdown on today's weekday schedule; Manual unlocks it.
@@ -394,11 +457,18 @@ function tick() {
 
   const nm = nowMinutes();
   const periods = schedule.periods;
-  const first = periods[0];
-  const beforeSchool = nm < toMinutes(first.start);
-
-  // Find current period (if any)
+  const beforeSchool = nm < toMinutes(periods[0].start);
   const current = periods.find(p => nm >= toMinutes(p.start) && nm < toMinutes(p.end));
+  const upcoming = current ? null : periods.find(p => toMinutes(p.start) > nm); // next class, when between classes
+
+  // Next bell: Period 1's start before school (even on the First Day, when
+  // the Rally comes first), the current period's end in class, or the next
+  // period's start between classes
+  let next = null;
+  if (beforeSchool) next = { period: firstClass(schedule), edge: "start" };
+  else if (current) next = { period: current, edge: "end" };
+  else if (upcoming) next = { period: upcoming, edge: "start" };
+
   if (current) {
     currentPeriodName.textContent = current.name;
     currentPeriodTime.textContent = `${formatClock(current.start)} – ${formatClock(current.end)} · ${formatDuration(current)}`;
@@ -408,34 +478,21 @@ function tick() {
     currentPeriodElapsed.textContent = `${formatCountdown(elapsedSeconds)} elapsed`;
     currentPeriodElapsed.hidden = false;
     updatePhaseLine(current, nm);
-  } else if (beforeSchool) {
-    currentPeriodName.textContent = "Before school";
-    currentPeriodTime.textContent = `${first.name} starts at ${formatClock(first.start)}`;
+  } else {
+    currentPeriodName.textContent = beforeSchool ? "Before school" : upcoming ? "Passing period" : "School's out";
+    currentPeriodTime.textContent = next ? bellLabel(next) : "";
     currentPeriodElapsed.hidden = true;
     currentPhase.hidden = true;
-  } else {
-    currentPeriodName.textContent = "Passing / Out of school hours";
-    currentPeriodTime.textContent = "";
-    currentPeriodElapsed.hidden = true;
-    currentPhase.hidden = true;
-  }
-
-  // Find next bell: the first period's start before school, otherwise the
-  // next end-of-period time still ahead of now
-  let next = null;
-  if (beforeSchool) {
-    next = { time: first.start, label: `${first.name} starts at ${formatClock(first.start)}` };
-  } else {
-    const p = periods.find(p => toMinutes(p.end) > nm);
-    if (p) next = { time: p.end, label: `${p.name} ends at ${formatClock(p.end)}` };
   }
 
   if (next) {
-    const diff = toMinutes(next.time) - nm; // minutes remaining, fractional
+    const diff = toMinutes(next.period[next.edge]) - nm; // minutes remaining, fractional
     const totalSeconds = Math.max(0, Math.round(diff * 60));
     countdownEl.textContent = formatCountdown(totalSeconds);
-    countdownEl.classList.toggle("urgent", diff <= ALARM_LEAD_MINUTES);
-    nextBellNameEl.textContent = next.label;
+    // Red once this bell's alarm has sounded; bells with no alarm (most class starts) stay normal
+    const alarm = alarmBells(schedule).find(a => a.period === next.period && a.edge === next.edge);
+    countdownEl.classList.toggle("urgent", !!alarm && diff <= alarm.lead);
+    nextBellNameEl.textContent = bellLabel(next);
   } else {
     countdownEl.textContent = "Done";
     countdownEl.classList.remove("urgent");
@@ -443,6 +500,10 @@ function tick() {
   }
 
   renderPeriodList(schedule);
+}
+
+function bellLabel({ period, edge }) {
+  return `${period.name} ${edge === "start" ? "starts" : "ends"} at ${formatClock(period[edge])}`;
 }
 
 // Inside a period with parts (period 2): which part we're in, time left in
@@ -474,28 +535,23 @@ function updatePhaseLine(period, nm) {
 // audio clock isn't slowed.
 function soundEvents(key, schedule) {
   const events = [];
-  const first = schedule.periods[0];
+  const titles = { start: "First bell soon", lunch: "Lunch ends soon", cleanup: "Cleanup time" };
   if (alarmsEnabled) {
-    events.push({
-      id: `${key}-warning-${first.start}`,
-      sound: "alarm",
-      at: (toMinutes(first.start) - ALARM_LEAD_MINUTES) * 60,
-      until: toMinutes(first.start) * 60,
-      title: "First bell soon",
-      body: `${first.name} starts at ${formatClock(first.start)} — 2 minute warning.`,
+    alarmBells(schedule).forEach(a => {
+      const bell = a.period[a.edge];
+      events.push({
+        // No lead time in the id: changing the cleanup setting reschedules an
+        // alarm that hasn't sounded yet, but never repeats one that has
+        id: `${key}-${a.kind}-${bell}`,
+        sound: "alarm",
+        at: (toMinutes(bell) - a.lead) * 60,
+        until: toMinutes(bell) * 60, // still worth sounding late, as long as the bell hasn't rung
+        title: titles[a.kind],
+        body: `${bellLabel(a)} — ${a.lead} minute warning.`,
+      });
     });
   }
   schedule.periods.forEach(p => {
-    if (alarmsEnabled) {
-      events.push({
-        id: `${key}-cleanup-${p.end}`,
-        sound: "alarm",
-        at: (toMinutes(p.end) - ALARM_LEAD_MINUTES) * 60,
-        until: toMinutes(p.end) * 60, // still worth sounding late, as long as the bell hasn't rung
-        title: "Cleanup time",
-        body: `${p.name} ends at ${formatClock(p.end)} — 2 minute warning.`,
-      });
-    }
     if (chimesEnabled && p.phases) {
       p.phases.slice(1).forEach((ph, i) => {
         const at = toMinutes(ph.start) * 60;
@@ -798,6 +854,7 @@ tabBrowse.addEventListener("click", () => showView("browse"));
 // ---------- Init ----------
 populateSchedules();
 populateBrowseChips();
+populateCleanupSwitch();
 chimeToggle.setAttribute("aria-pressed", String(chimesEnabled));
 wakeToggle.setAttribute("aria-pressed", String(keepScreenOn));
 wakeToggle.hidden = !("wakeLock" in navigator);

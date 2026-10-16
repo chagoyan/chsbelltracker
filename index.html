@@ -59,6 +59,11 @@
       <!-- populated by app.js -->
     </select>
     <div class="picker-toggles">
+      <!-- How early the cleanup alarm sounds; the Period 1 and lunch warnings stay at 5 min -->
+      <div id="cleanupSwitch" class="mode-switch cleanup-switch" role="group" aria-label="Cleanup alarm, minutes before each class ends">
+        <span class="cleanup-label" aria-hidden="true">Cleanup alarm</span>
+        <!-- 2 / 5 / 10 min options added by app.js -->
+      </div>
       <button id="chimeToggle" class="alarm-toggle" aria-pressed="true">
         <span class="alarm-dot"></span>
         <span class="alarm-label">P2 chime</span>
@@ -110,7 +115,7 @@
     </section>
   </div>
 
-  <p class="footnote">Cleanup alarm sounds 2 minutes before each bell. The P2 chime sounds when breakfast and reading end. Keep this app open and unmuted.</p>
+  <p class="footnote">Cleanup alarm sounds before each class ends (2, 5, or 10 minutes, your pick). A 5 minute warning sounds before Period 1 starts and before lunch ends. The P2 chime sounds when breakfast and reading end. Keep this app open and unmuted.</p>
 
   <script src="app.js"></script>
 </body>
