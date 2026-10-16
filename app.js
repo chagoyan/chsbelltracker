@@ -394,6 +394,8 @@ function tick() {
 
   const nm = nowMinutes();
   const periods = schedule.periods;
+  const first = periods[0];
+  const beforeSchool = nm < toMinutes(first.start);
 
   // Find current period (if any)
   const current = periods.find(p => nm >= toMinutes(p.start) && nm < toMinutes(p.end));
@@ -406,6 +408,11 @@ function tick() {
     currentPeriodElapsed.textContent = `${formatCountdown(elapsedSeconds)} elapsed`;
     currentPeriodElapsed.hidden = false;
     updatePhaseLine(current, nm);
+  } else if (beforeSchool) {
+    currentPeriodName.textContent = "Before school";
+    currentPeriodTime.textContent = `${first.name} starts at ${formatClock(first.start)}`;
+    currentPeriodElapsed.hidden = true;
+    currentPhase.hidden = true;
   } else {
     currentPeriodName.textContent = "Passing / Out of school hours";
     currentPeriodTime.textContent = "";
@@ -413,20 +420,22 @@ function tick() {
     currentPhase.hidden = true;
   }
 
-  // Find next bell (the next end-of-period time still ahead of now)
+  // Find next bell: the first period's start before school, otherwise the
+  // next end-of-period time still ahead of now
   let next = null;
-  for (const p of periods) {
-    const end = toMinutes(p.end);
-    if (end > nm) { next = p; break; }
+  if (beforeSchool) {
+    next = { time: first.start, label: `${first.name} starts at ${formatClock(first.start)}` };
+  } else {
+    const p = periods.find(p => toMinutes(p.end) > nm);
+    if (p) next = { time: p.end, label: `${p.name} ends at ${formatClock(p.end)}` };
   }
 
   if (next) {
-    const end = toMinutes(next.end);
-    const diff = end - nm; // minutes remaining, fractional
+    const diff = toMinutes(next.time) - nm; // minutes remaining, fractional
     const totalSeconds = Math.max(0, Math.round(diff * 60));
     countdownEl.textContent = formatCountdown(totalSeconds);
     countdownEl.classList.toggle("urgent", diff <= ALARM_LEAD_MINUTES);
-    nextBellNameEl.textContent = `${next.name} ends at ${formatClock(next.end)}`;
+    nextBellNameEl.textContent = next.label;
   } else {
     countdownEl.textContent = "Done";
     countdownEl.classList.remove("urgent");
@@ -465,6 +474,17 @@ function updatePhaseLine(period, nm) {
 // audio clock isn't slowed.
 function soundEvents(key, schedule) {
   const events = [];
+  const first = schedule.periods[0];
+  if (alarmsEnabled) {
+    events.push({
+      id: `${key}-warning-${first.start}`,
+      sound: "alarm",
+      at: (toMinutes(first.start) - ALARM_LEAD_MINUTES) * 60,
+      until: toMinutes(first.start) * 60,
+      title: "First bell soon",
+      body: `${first.name} starts at ${formatClock(first.start)} — 2 minute warning.`,
+    });
+  }
   schedule.periods.forEach(p => {
     if (alarmsEnabled) {
       events.push({
