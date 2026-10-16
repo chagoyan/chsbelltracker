@@ -113,6 +113,7 @@ const CHIME_STORAGE_KEY = "chsBellTracker.chimeOn";
 const WAKE_STORAGE_KEY = "chsBellTracker.keepScreenOn";
 
 // ---------- State ----------
+let scheduleMode = "auto"; // "auto" (picked by weekday) or "manual" (picked from the dropdown, today only)
 let alarmsEnabled = true;
 let chimesEnabled = readSetting(CHIME_STORAGE_KEY, true);
 let keepScreenOn = readSetting(WAKE_STORAGE_KEY, false);
@@ -133,6 +134,8 @@ let logoTaps = [];
 
 // ---------- Elements ----------
 const scheduleSelect = document.getElementById("scheduleSelect");
+const modeAuto = document.getElementById("modeAuto");
+const modeManual = document.getElementById("modeManual");
 const alarmToggle = document.getElementById("alarmToggle");
 const chimeToggle = document.getElementById("chimeToggle");
 const wakeToggle = document.getElementById("wakeToggle");
@@ -227,15 +230,15 @@ function saveSetting(key, value) {
 }
 
 // ---------- Which schedule applies today ----------
-// The picker holds "auto" (by weekday), a schedule key, or "none" (no school).
-// Anything other than "auto" is saved with today's date and forgotten tomorrow.
+// Auto: the schedule follows the weekday. Manual: it's whatever the dropdown
+// says (a schedule key or "none"), saved with today's date so it's forgotten
+// tomorrow and the switch goes back to Auto.
 function autoScheduleKey() {
   return WEEKDAY_SCHEDULES[currentDate().getDay()] || null;
 }
 
 function activeScheduleKey() {
-  const choice = scheduleSelect.value;
-  if (choice === "auto") return autoScheduleKey();
+  const choice = scheduleMode === "auto" ? autoScheduleKey() : scheduleSelect.value;
   return SCHEDULES[choice] ? choice : null;
 }
 
@@ -245,33 +248,32 @@ function loadTodayChoice() {
     if (saved && saved.day === todayKey() && (saved.choice === "none" || SCHEDULES[saved.choice])) {
       return saved.choice;
     }
-  } catch (e) { /* missing, malformed, or localStorage unavailable — fall back to auto */ }
-  return "auto";
+  } catch (e) { /* missing, malformed, or localStorage unavailable — fall back to Auto */ }
+  return null;
 }
 
 function saveTodayChoice(choice) {
   try {
-    if (choice === "auto") localStorage.removeItem(CHOICE_STORAGE_KEY);
+    if (!choice) localStorage.removeItem(CHOICE_STORAGE_KEY);
     else localStorage.setItem(CHOICE_STORAGE_KEY, JSON.stringify({ day: todayKey(), choice }));
   } catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
 }
 
 // ---------- Populate schedule dropdown ----------
 function populateSchedules() {
-  scheduleSelect.appendChild(new Option("", "auto")); // label filled in by updateAutoLabel()
-
-  const todayOnly = document.createElement("optgroup");
-  todayOnly.label = "Today only";
   Object.entries(SCHEDULES).forEach(([key, sched]) => {
-    todayOnly.appendChild(new Option(sched.label, key));
+    scheduleSelect.appendChild(new Option(sched.label, key));
   });
-  todayOnly.appendChild(new Option("No school today", "none"));
-  scheduleSelect.appendChild(todayOnly);
+  scheduleSelect.appendChild(new Option("No school today", "none"));
 }
 
-function updateAutoLabel() {
-  const key = autoScheduleKey();
-  scheduleSelect.options[0].textContent = key ? `Auto — ${SCHEDULES[key].short}` : "Auto — Weekend, no school";
+// Auto locks the dropdown on today's weekday schedule; Manual unlocks it.
+function setScheduleMode(mode) {
+  scheduleMode = mode;
+  modeAuto.setAttribute("aria-pressed", String(mode === "auto"));
+  modeManual.setAttribute("aria-pressed", String(mode === "manual"));
+  scheduleSelect.disabled = mode === "auto";
+  if (mode === "auto") scheduleSelect.value = autoScheduleKey() || "none";
 }
 
 // ---------- Render period list ----------
@@ -280,7 +282,7 @@ function updateAutoLabel() {
 function renderPeriodList(schedule, listEl = periodListEl, live = true) {
   listEl.innerHTML = "";
   if (!schedule) {
-    listEl.innerHTML = `<div class="empty-state">No bells today. Pick a schedule above if you need one.</div>`;
+    listEl.innerHTML = `<div class="empty-state">No bells today.</div>`;
     return;
   }
   const nm = nowMinutes();
@@ -365,9 +367,10 @@ function tick() {
   const dayKey = todayKey();
   if (dayKey !== currentDayKey) {
     currentDayKey = dayKey;
-    // New calendar day — yesterday's manual pick expires and every sound is eligible again
-    scheduleSelect.value = loadTodayChoice();
-    updateAutoLabel();
+    // New calendar day — yesterday's manual pick expires (back to Auto) and every sound is eligible again
+    const manualChoice = loadTodayChoice();
+    setScheduleMode(manualChoice ? "manual" : "auto");
+    if (manualChoice) scheduleSelect.value = manualChoice;
     resetSounds();
   }
 
@@ -377,9 +380,9 @@ function tick() {
 
   if (!schedule) {
     currentPeriodName.textContent = "No school today";
-    currentPeriodTime.textContent = scheduleSelect.value === "none"
+    currentPeriodTime.textContent = scheduleMode === "manual"
       ? "Alarms are off for today"
-      : "Pick a schedule above to use one anyway";
+      : "Switch to Manual to pick a schedule anyway";
     currentPeriodElapsed.hidden = true;
     currentPhase.hidden = true;
     countdownEl.textContent = "--:--";
@@ -665,7 +668,7 @@ function updateTestBar() {
     const minutes = toMinutes(periods.at(-1).end) - toMinutes(periods[0].start) + TEST_LEAD_MINUTES;
     testStatus.textContent = `TEST MODE · Run ${schedule.short} at ${TEST_SPEED}× (about ${Math.ceil(minutes / TEST_SPEED)} min)`;
   } else {
-    testStatus.textContent = "TEST MODE · Pick a schedule above first";
+    testStatus.textContent = "TEST MODE · Switch to Manual and pick a schedule first";
   }
   testRunButton.hidden = false;
   testRunButton.disabled = !schedule;
@@ -698,6 +701,21 @@ function stopTest() {
 }
 
 // ---------- Event wiring ----------
+modeAuto.addEventListener("click", () => {
+  if (scheduleMode === "auto") return;
+  setScheduleMode("auto");
+  saveTodayChoice(null);
+  resetSounds(); // schedule may have changed — fresh alarm tracking
+  tick();
+});
+
+modeManual.addEventListener("click", () => {
+  if (scheduleMode === "manual") return;
+  setScheduleMode("manual"); // starts on the schedule Auto was showing
+  saveTodayChoice(scheduleSelect.value);
+  tick();
+});
+
 scheduleSelect.addEventListener("change", () => {
   saveTodayChoice(scheduleSelect.value);
   resetSounds(); // fresh schedule, fresh alarm tracking

@@ -207,6 +207,7 @@ body.test-running::after {
 }
 
 .tab:focus-visible,
+.mode-option:focus-visible,
 .browse-chip:focus-visible {
   outline: 2px solid var(--orange);
   outline-offset: 2px;
@@ -260,6 +261,44 @@ body.test-running::after {
   margin-bottom: 6px;
 }
 
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.picker-head .picker-label { margin-bottom: 0; }
+
+/* Auto | Manual — same pill style as the Today / View Schedules tabs */
+.mode-switch {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.mode-option {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  min-height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mode-option[aria-pressed="true"] {
+  background: var(--orange);
+  color: var(--bg);
+}
+
 .picker-select {
   width: 100%;
   background: var(--surface);
@@ -283,6 +322,15 @@ body.test-running::after {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+}
+
+/* Locked in Auto: muted text, no dropdown arrow */
+.picker-select:disabled {
+  color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted);
+  background-image: none;
+  opacity: 1;
+  cursor: default;
 }
 
 .picker-select:focus-visible {

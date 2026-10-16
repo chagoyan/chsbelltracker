@@ -47,7 +47,14 @@
 
   <!-- Schedule picker -->
   <section class="picker">
-    <label for="scheduleSelect" class="picker-label">Today's schedule</label>
+    <div class="picker-head">
+      <label for="scheduleSelect" class="picker-label">Today's schedule</label>
+      <!-- Auto picks by weekday; Manual unlocks the dropdown for today only -->
+      <div class="mode-switch" role="group" aria-label="How today's schedule is chosen">
+        <button id="modeAuto" class="mode-option" aria-pressed="true">Auto</button>
+        <button id="modeManual" class="mode-option" aria-pressed="false">Manual</button>
+      </div>
+    </div>
     <select id="scheduleSelect" class="picker-select">
       <!-- populated by app.js -->
     </select>
