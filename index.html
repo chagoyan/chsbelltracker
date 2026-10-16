@@ -16,7 +16,7 @@
   <!-- Top bar: day picker + alarm toggle -->
   <header class="topbar">
     <div class="brand">
-      <img src="logo.png" alt="CHS Technology Pathway logo" class="brand-logo">
+      <img src="logo.png" alt="CHS Technology Pathway logo" class="brand-logo" id="brandLogo">
       <span class="brand-mark">CHS</span>
       <span class="brand-sub">Bell&nbsp;Tracker</span>
     </div>
@@ -25,6 +25,17 @@
       <span class="alarm-label">Alarm ON</span>
     </button>
   </header>
+
+  <!-- Test mode: tap the logo 5 times. Runs today's schedule at 60× so the
+       whole day (alarms and chimes included) can be checked outside school hours. -->
+  <div id="testBar" class="test-bar" hidden>
+    <div class="test-status" id="testStatus"></div>
+    <button id="testRun" class="test-button">Start</button>
+    <button id="testClose" class="test-button">Close</button>
+  </div>
+
+  <!-- Shown until the page is allowed to play sound (any tap turns it on) -->
+  <button id="soundBanner" class="sound-banner" hidden>Sound is off. Tap here to turn on alarms.</button>
 
   <!-- Mode tabs: live tracker vs. read-only schedule reference -->
   <nav class="tabs" role="tablist">
@@ -40,6 +51,16 @@
     <select id="scheduleSelect" class="picker-select">
       <!-- populated by app.js -->
     </select>
+    <div class="picker-toggles">
+      <button id="chimeToggle" class="alarm-toggle" aria-pressed="true">
+        <span class="alarm-dot"></span>
+        <span class="alarm-label">P2 chime</span>
+      </button>
+      <button id="wakeToggle" class="alarm-toggle" aria-pressed="false">
+        <span class="alarm-dot"></span>
+        <span class="alarm-label">Keep screen on</span>
+      </button>
+    </div>
   </section>
 
   <!-- Now / Next readout — the signature element -->
@@ -50,6 +71,10 @@
         <div class="now-value" id="currentPeriodName">—</div>
         <div class="now-sub" id="currentPeriodTime">Pick a schedule above</div>
         <div class="now-elapsed" id="currentPeriodElapsed" hidden></div>
+        <div class="now-phase" id="currentPhase" hidden>
+          <div class="now-phase-name" id="currentPhaseName"></div>
+          <div class="now-phase-next" id="currentPhaseNext"></div>
+        </div>
       </div>
       <div class="divider" aria-hidden="true"></div>
       <div class="now-block">
@@ -78,12 +103,7 @@
     </section>
   </div>
 
-  <p class="footnote">Cleanup alarm sounds 2 minutes before each bell. Keep this tab open and unmuted.</p>
-
-  <!-- Hidden audio element used for the alarm sound -->
-  <audio id="alarmAudio" preload="auto">
-    <source src="alarm.wav" type="audio/wav">
-  </audio>
+  <p class="footnote">Cleanup alarm sounds 2 minutes before each bell. The P2 chime sounds when breakfast and reading end. Keep this app open and unmuted.</p>
 
   <script src="app.js"></script>
 </body>

@@ -13,6 +13,9 @@
 
 * { box-sizing: border-box; }
 
+/* Elements styled with display: flex/block must still disappear when hidden */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -94,6 +97,84 @@ body {
 .alarm-toggle[aria-pressed="false"] .alarm-dot {
   background: #6b6862;
   box-shadow: none;
+}
+
+/* ---------- Test mode ---------- */
+/* Deliberately loud: a striped bar pinned to the top and an orange frame
+   around the whole screen, so a test run is never mistaken for real time. */
+.test-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: repeating-linear-gradient(-45deg, var(--orange) 0 14px, #1c1c1c 14px 28px);
+  border: 2px solid var(--orange);
+}
+
+.test-status {
+  flex: 1 1 180px;
+  background: var(--bg);
+  color: var(--orange);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.test-clock {
+  display: block;
+  font-size: clamp(22px, 7vw, 28px);
+  color: var(--text);
+}
+
+.test-button {
+  background: var(--bg);
+  color: var(--text);
+  border: 2px solid var(--orange);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.test-button:disabled { opacity: 0.5; cursor: default; }
+
+body.test-running::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 6px solid var(--orange);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.brand-logo { touch-action: manipulation; }
+
+/* ---------- Sound banner ---------- */
+.sound-banner {
+  display: block;
+  width: 100%;
+  background: rgba(242,101,34,0.14);
+  border: 1px solid var(--orange-dim);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 14px;
 }
 
 /* ---------- Mode tabs ---------- */
@@ -197,6 +278,13 @@ body {
   background-repeat: no-repeat;
 }
 
+.picker-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .picker-select:focus-visible {
   outline: 2px solid var(--orange);
   outline-offset: 2px;
@@ -292,6 +380,28 @@ body {
   flex-shrink: 0;
 }
 
+/* Current part of period 2, with time left and what's next */
+.now-phase {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-left: 3px solid var(--orange);
+  border-radius: 6px;
+  background: rgba(242,101,34,0.10);
+}
+
+.now-phase-name {
+  font-size: clamp(12px, 3.4vw, 13px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.now-phase-next {
+  margin-top: 2px;
+  font-size: clamp(11px, 3vw, 12px);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 /* Below ~340px, two side-by-side number blocks get too cramped —
    stack them and lay the divider flat instead. */
 @media (max-width: 340px) {
@@ -322,6 +432,35 @@ body {
   border-color: var(--orange);
   background: linear-gradient(90deg, rgba(242,101,34,0.16), var(--surface) 60%);
 }
+
+.period-row.has-phases {
+  border-left: 4px solid var(--orange);
+  padding-left: 13px;
+}
+
+.phase-list {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+}
+
+.phase-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: clamp(12px, 3.3vw, 13px);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.phase-time { font-variant-numeric: tabular-nums; }
+
+.phase-row.is-current { color: var(--orange); }
+
+.phase-row.is-current .phase-name::before { content: "● "; }
 
 .period-row.is-done {
   opacity: 0.42;
