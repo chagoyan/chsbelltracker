@@ -1,7 +1,7 @@
 {
   "name": "CHS Bell Tracker",
   "short_name": "CHS Bell",
-  "description": "Coalinga High bell schedules with a 2-minute cleanup alarm before every bell.",
+  "description": "Coalinga High bell schedules with a countdown to every bell and an adjustable cleanup alarm before each class ends.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1c1c1c",
