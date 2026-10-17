@@ -324,14 +324,88 @@ body.test-running::after {
   margin-top: 10px;
 }
 
-/* Cleanup alarm: 2 | 5 | 10 min — the Auto | Manual pill with a label inside */
-.cleanup-switch { align-items: center; }
+/* Cleanup alarm slider: 0 (off) to 15 min, in a full-width pill */
+.cleanup-slider {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  min-height: 44px;
+}
 
 .cleanup-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-muted);
-  padding: 0 6px 0 10px;
+  white-space: nowrap;
+}
+
+.cleanup-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--orange);
+  min-width: 46px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#cleanupRange {
+  --fill: 13.3%; /* set by app.js to the thumb position */
+  flex: 1;
+  width: 0; /* let flex size it, not the browser's built-in slider width */
+  min-width: 0;
+  height: 28px; /* generous touch target; the visible track is thinner */
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+#cleanupRange::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--orange) var(--fill), var(--border) var(--fill));
+}
+
+#cleanupRange::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+#cleanupRange::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--orange);
+}
+
+#cleanupRange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 3px solid var(--orange);
+}
+
+#cleanupRange::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 3px solid var(--orange);
+}
+
+#cleanupRange:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 4px;
+  border-radius: 999px;
 }
 
 /* Locked in Auto: muted text, no dropdown arrow */

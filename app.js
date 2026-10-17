@@ -6,8 +6,8 @@
 // `phases` splits a period into parts (breakfast, reading, instruction).
 // A chime plays when each part after the first begins.
 //
-// Alarms: a cleanup alarm before each period ends (lead time picked in the
-// app), plus fixed warnings before Period 1 starts and before Lunch ends.
+// Alarms: a cleanup alarm before each period ends (lead time picked on the
+// app's slider, 0 = off), plus fixed warnings before Period 1 starts and before Lunch ends.
 // `noCleanup` skips a period's cleanup alarm.
 // ============================================================
 
@@ -108,7 +108,7 @@ const WEEKDAY_SCHEDULES = { 1: "regular", 2: "regular", 3: "wednesday", 4: "thur
 const FIRST_CLASS_NAME = "Period 1"; // gets the warning before it starts, and the before-school countdown
 const LUNCH_NAME = "Lunch"; // gets the fixed warning before it ends instead of a cleanup alarm
 const WARNING_MINUTES = 5; // fixed lead for the Period 1 and lunch-ends warnings
-const CLEANUP_CHOICES = [2, 5, 10]; // cleanup alarm lead times the user can pick, in minutes
+const CLEANUP_MAX_MINUTES = 15; // the cleanup slider runs from 0 (off) to this many minutes
 const DEFAULT_CLEANUP_MINUTES = 2;
 const CHIME_GRACE_SECONDS = 15; // a chime missed by more than this (e.g. the app was paused) is skipped, not played late
 const SOUND_LOOKAHEAD_SECONDS = 90; // schedule sounds this far ahead — background tabs may only run timers once a minute
@@ -149,7 +149,8 @@ const modeManual = document.getElementById("modeManual");
 const alarmToggle = document.getElementById("alarmToggle");
 const chimeToggle = document.getElementById("chimeToggle");
 const wakeToggle = document.getElementById("wakeToggle");
-const cleanupSwitch = document.getElementById("cleanupSwitch");
+const cleanupRange = document.getElementById("cleanupRange");
+const cleanupValue = document.getElementById("cleanupValue");
 const soundBanner = document.getElementById("soundBanner");
 const brandLogo = document.getElementById("brandLogo");
 const testBar = document.getElementById("testBar");
@@ -242,8 +243,9 @@ function saveSetting(key, value) {
 
 function readCleanupMinutes() {
   try {
-    const saved = Number(localStorage.getItem(CLEANUP_STORAGE_KEY));
-    if (CLEANUP_CHOICES.includes(saved)) return saved;
+    const saved = localStorage.getItem(CLEANUP_STORAGE_KEY);
+    const minutes = Number(saved);
+    if (saved !== null && Number.isInteger(minutes) && minutes >= 0 && minutes <= CLEANUP_MAX_MINUTES) return minutes;
   } catch (e) { /* localStorage unavailable (e.g. private browsing) — not critical */ }
   return DEFAULT_CLEANUP_MINUTES;
 }
@@ -259,7 +261,7 @@ function alarmBells(schedule) {
   const bells = [{ kind: "start", period: first, edge: "start", lead: WARNING_MINUTES }];
   schedule.periods.forEach(p => {
     if (p.name === LUNCH_NAME) bells.push({ kind: "lunch", period: p, edge: "end", lead: WARNING_MINUTES });
-    else if (!p.noCleanup) bells.push({ kind: "cleanup", period: p, edge: "end", lead: cleanupMinutes });
+    else if (!p.noCleanup && cleanupMinutes > 0) bells.push({ kind: "cleanup", period: p, edge: "end", lead: cleanupMinutes });
   });
   return bells;
 }
@@ -303,29 +305,31 @@ function populateSchedules() {
 }
 
 // ---------- Cleanup alarm lead time ----------
-function populateCleanupSwitch() {
-  CLEANUP_CHOICES.forEach(minutes => {
-    const option = document.createElement("button");
-    option.className = "mode-option";
-    option.dataset.minutes = minutes;
-    option.textContent = `${minutes} min`;
-    option.addEventListener("click", () => setCleanupMinutes(minutes));
-    cleanupSwitch.appendChild(option);
-  });
-  markCleanupChoice();
+// The label follows the slider while it's dragged; the setting is saved and
+// alarms rescheduled only once it's let go.
+function populateCleanupSlider() {
+  cleanupRange.min = 0;
+  cleanupRange.max = CLEANUP_MAX_MINUTES;
+  cleanupRange.value = cleanupMinutes;
+  showCleanupValue(cleanupMinutes);
+  cleanupRange.addEventListener("input", () => showCleanupValue(Number(cleanupRange.value)));
+  cleanupRange.addEventListener("change", () => setCleanupMinutes(Number(cleanupRange.value)));
 }
 
-function markCleanupChoice() {
-  cleanupSwitch.querySelectorAll(".mode-option").forEach(option => {
-    option.setAttribute("aria-pressed", String(Number(option.dataset.minutes) === cleanupMinutes));
-  });
+function cleanupText(minutes) {
+  return minutes === 0 ? "Off" : `${minutes} min`;
+}
+
+function showCleanupValue(minutes) {
+  cleanupValue.textContent = cleanupText(minutes);
+  cleanupRange.setAttribute("aria-valuetext", minutes === 0 ? "Off" : `${minutes} minutes before each class ends`);
+  cleanupRange.style.setProperty("--fill", `${(minutes / CLEANUP_MAX_MINUTES) * 100}%`);
 }
 
 function setCleanupMinutes(minutes) {
   if (minutes === cleanupMinutes) return;
   cleanupMinutes = minutes;
   saveSetting(CLEANUP_STORAGE_KEY, minutes);
-  markCleanupChoice();
   cancelPendingSounds("alarm"); // alarms already lined up move to the new lead time
   tick();
 }
@@ -854,7 +858,7 @@ tabBrowse.addEventListener("click", () => showView("browse"));
 // ---------- Init ----------
 populateSchedules();
 populateBrowseChips();
-populateCleanupSwitch();
+populateCleanupSlider();
 chimeToggle.setAttribute("aria-pressed", String(chimesEnabled));
 wakeToggle.setAttribute("aria-pressed", String(keepScreenOn));
 wakeToggle.hidden = !("wakeLock" in navigator);
